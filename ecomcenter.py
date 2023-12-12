@@ -3,13 +3,12 @@ import requests
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from unidecode import unidecode
-from pytrends.request import TrendReq
-from wordcloud import WordCloud
-import matplotlib.pyplot as plt
+from flask import Flask, jsonify
 
-lista_articulos = defaultdict(list)
+app = Flask(__name__)
 
-def run():
+@app.route('/procesar_datos', methods = ["GET"])
+def procesar_datos():
     #--------- input del usuario
 
     buscar = input("¿Qué producto desea buscar?: ")
@@ -19,6 +18,7 @@ def run():
     #--------- Búsqueda en MeLi
 
     url = unidecode(f'https://listado.mercadolibre.com.co/{a}#D[A:{b}]')
+    lista_articulos = defaultdict(list)
     ingreso_pag = requests.get(url)
     html_soup = BeautifulSoup(ingreso_pag.text, 'html.parser')
 
@@ -144,11 +144,13 @@ def run():
     tabla_excel = input("¿Desea ver ampliar la información? [Y/N]: ")
     if tabla_excel == 'Y' or tabla_excel == "y":
         print(f'archivo {buscar} fue creado')
-        return tabla_final.to_csv(f'{buscar.lower()}.csv')
+        tabla_final.to_csv(f'{buscar.lower()}.csv')
+        return jsonify({"resultado": tabla_final})
     else:
-        return print("No se creará un archivo CSV")
+        print("No se creará un archivo CSV")
+        return jsonify({"resultado": tabla_final})
 
 
 
 if __name__ == '__main__':
-    run()
+    app.run(debug=True)
