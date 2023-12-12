@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Proyecto con Flask y GitHub Pages</title>
+</head>
+<body>
+    <h1>Mi Proyecto</h1>
+    <button onclick="procesarDatos()">Procesar Datos</button>
+
+    <script>
+        function procesarDatos() {
+            fetch('http://18.116.237.32:5000/procesar_datos')
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    // Haz algo con los datos recibidos
+                })
+                .catch(error => console.error(error));
+        }
+    </script>
+</body>
+</html>
