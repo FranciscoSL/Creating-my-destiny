@@ -7,7 +7,7 @@ from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-@app.route('/procesar_datos', methods = ["GET"])
+@app.route('/procesar_datos')
 def procesar_datos():
     #--------- input del usuario
 
@@ -153,4 +153,4 @@ def procesar_datos():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run("0.0.0.0", debug=False)
