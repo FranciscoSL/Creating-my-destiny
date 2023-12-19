@@ -1,0 +1,28 @@
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador de Mercado Libre</title>
+
+    <script>
+        function mostrarMensajeBuscando() {
+            var mensajeDiv = document.getElementById("mensaje-buscando");
+            mensajeDiv.style.display = "block";
+        }
+    </script>   
+
+</head>
+<body>
+    <h1>Buscador de Mercado Libre</h1>
+    <form action="/buscar" method="post">
+        <label for="termino_busqueda">Buscar:</label>
+        <input type="text" id="termino_busqueda" name="termino_busqueda" required>
+        <button type="submit" onclick="mostrarMensajeBuscando()">Buscar</button>
+    </form>
+
+    <div id="mensaje-buscando" style="display: none;">
+        Buscando... Por favor, espera.
+    </div>
+
+</body>
+</html>

@@ -3,15 +3,18 @@ import requests
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from unidecode import unidecode
-from flask import Flask, jsonify
-
+from flask import Flask, render_template, request, json
 app = Flask(__name__)
 
-@app.route('/procesar_datos')
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/buscar', methods = ['POST'])
 def procesar_datos():
     #--------- input del usuario
 
-    buscar = input("¿Qué producto desea buscar?: ")
+    buscar = request.form['termino_busqueda']
     a = '-'.join(buscar.replace('%', '%25').split())
     b = '%20'.join(buscar.split())
 
@@ -30,34 +33,24 @@ def procesar_datos():
         articulos_mdolibre = html_soup.find_all('li', class_= "ui-search-layout__item")
 
     try:
-        saturacion = int(html_soup.find('li', class_="andes-pagination__page-count").text.split()[-1])
+        cant_pctos = int(html_soup.find('li', class_="andes-pagination__page-count").text.split()[-1])
     except AttributeError:
-        saturacion = 0
+        cant_pctos = 0
+    if cant_pctos < 5:
+        saturacion = "No Saturado"
+    elif cant_pctos >= 5 and cant_pctos < 12:
+        saturacion = "Poco Saturado"
+    elif cant_pctos >= 12 and cant_pctos < 20:
+        saturacion = "Saturado"
+    elif cant_pctos >= 20 and cant_pctos < 25:
+        saturacion = "Muy Saturado"
+    else:
+        saturacion = "Demasiado Saturado"
 
     for articulo in articulos_mdolibre:
         # tienda = html_soup.find('p', class_= "ui-search-official-store-label ui-search-item__group__element shops__items-group-details ui-search-color--GRAY").text.split()[1]
         nombre = unidecode(articulo.find('h2', class_="ui-search-item__title").text.lower())
         precio_actual = articulo.find('span', class_="andes-money-amount__fraction").text.split()[0].replace('.','')
-        
-
-        def ingreso_producto():
-            url_producto = articulo.a.get('href')
-            ingreso = requests.get(url_producto)
-            html_bs4 = BeautifulSoup(ingreso.text, 'html.parser')
-            try:
-                cat = unidecode(html_bs4.find_all('a', class_='andes-breadcrumb__link')[-1].get_text().lower())
-            except IndexError:
-                cat = "no categoria"
-            try:
-                ventas = html_bs4.find('span', class_= 'ui-pdp-subtitle').get_text().split()[2].replace('+', '').replace('mil', '000')
-            except (IndexError, AttributeError):
-                ventas = 0
-
-            return ventas, url_producto, cat
-        
-        result = ingreso_producto()
-        ventas, url_producto, categoria = result[0], result[1], result[2]
-
         try:
             rating = articulo.find('span', class_="ui-search-reviews__rating-number").text
             cantidad_opiniones = articulo.find('span', class_="ui-search-reviews__amount").text.replace(")", "").replace("(", "")
@@ -77,6 +70,20 @@ def procesar_datos():
         except AttributeError:
             precio_antes = 0
             descuento = 0
+
+    #--------- Ingreso al producto   
+    
+        url_producto = articulo.a.get('href')
+        ingreso = requests.get(url_producto)
+        html_bs4 = BeautifulSoup(ingreso.text, 'html.parser')
+        try:
+            categoria = unidecode(html_bs4.find_all('a', class_='andes-breadcrumb__link')[-1].get_text().lower())
+        except IndexError:
+            categoria = "no categoria"
+        try:
+            ventas = html_bs4.find('span', class_= 'ui-pdp-subtitle').get_text().split()[2].replace('+', '').replace('mil', '000')
+        except (IndexError, AttributeError):
+            ventas = 0
 
     #--------- Guarda cada variable en el diccionario
 
@@ -102,55 +109,14 @@ def procesar_datos():
 
     #--------- Estadística básica
 
-    promedio_ventas, promedio_opiniones = round(tabla_final['ventas_producto'].mean(), 2), round(tabla_final['cantidad_opiniones'].mean(), 2)
-    max_ventas, min_ventas  = round(tabla_final['ventas_producto'].max(), 2), round(tabla_final['ventas_producto'].min(), 2)
-    max_opiniones, min_opiniones = round(tabla_final['cantidad_opiniones'].max(), 2), round(tabla_final['cantidad_opiniones'].min(), 2)
-    promedio_precio = round(tabla_final['precio_actual'].mean(), 2)
-    max_precio, min_precio = round(tabla_final['precio_actual'].max(), 2), round(tabla_final['precio_actual'].min(), 2)
+    datos_estadisticos = {
+        "1.Ventas" : {"Promedio": round(tabla_final['ventas_producto'].mean(), 2),"Maximo": tabla_final['ventas_producto'].max(),"Minimo": tabla_final['ventas_producto'].min()}
+        ,"2.Opiniones": {"Promedio": round(tabla_final['cantidad_opiniones'].mean(), 2),"Maximo": tabla_final['cantidad_opiniones'].max(),"Minimo": tabla_final['cantidad_opiniones'].min()}
+        ,"3.Precio": {"Promedio": round(tabla_final['precio_actual'].mean(), 2),"Maximo": tabla_final['precio_actual'].max(),"Minimo": tabla_final['precio_actual'].min()}
+        ,"4.Saturacion" : saturacion
+        ,"5.Paginas": cant_pctos
+        ,"6.Productos": cant_pctos* 50}
 
+    tabla_html = tabla_final.to_html(classes = "table table-bordered", index=False)
 
-    print(a, b, sep = '\n')
-    print(f"""Promedio de ventas: {round(promedio_ventas)}
-        , Max ventas: {max_ventas}
-        , Min ventas: {min_ventas}
-        , Promedio de precio: {round(promedio_precio)}
-        , max precio: {max_precio}
-        , min precio: {min_precio}
-        , promedio de opiniones: {round(promedio_opiniones)}
-        , max opiniones: {max_opiniones}
-        , min opiniones: {min_opiniones}""")
-
-    if saturacion < 5:
-        print(f"""No Saturado 
-        Páginas: {saturacion}
-        Productos: {saturacion * 50}""")
-    elif saturacion >= 5 and saturacion < 12:
-        print(f"""Poco Saturado
-        Páginas: {saturacion}
-        Productos: {saturacion * 50}""")
-    elif saturacion >= 12 and saturacion < 20:
-        print(f"""Saturado
-        Páginas: {saturacion}
-        Productos: {saturacion * 50}""")
-    elif saturacion >= 20 and saturacion < 25:
-        print(f"""Muy Saturado
-        Páginas: {saturacion}
-        Productos: {saturacion * 50}""")
-    else:
-        print(f"""Demasiado Saturado
-        Páginas: {saturacion}
-        Productos: Aprox {saturacion * 50}""")
-    
-    tabla_excel = input("¿Desea ver ampliar la información? [Y/N]: ")
-    if tabla_excel == 'Y' or tabla_excel == "y":
-        print(f'archivo {buscar} fue creado')
-        tabla_final.to_csv(f'{buscar.lower()}.csv')
-        return jsonify({"resultado": tabla_final})
-    else:
-        print("No se creará un archivo CSV")
-        return jsonify({"resultado": tabla_final})
-
-
-
-if __name__ == '__main__':
-    app.run("0.0.0.0", debug=False)
+    return render_template("resultado.html", resultado = tabla_html, estadistica = json.dumps(datos_estadisticos, indent = 4))
